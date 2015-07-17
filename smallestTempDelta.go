@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
+
+	"github.com/gartht/minDeltaUtil"
 )
 
 func checkError(e error) {
@@ -20,49 +22,30 @@ func main() {
 	checkError(error)
 	defer file.Close()
 
-	const valueSet = 8
+	reader := bufio.NewReader(file)
 
-	file.Seek(97, 0)
+	deltaFinder := minDeltaUtil.Finder(1, 2, 0)
 
-	b := make([]byte, valueSet)
+	outputString := ""
 
-	var smallestDelta int64
+	//read past the first two lines (header and an empty row)
+	reader.ReadString('\n')
+	reader.ReadString('\n')
 
-	evaluator := deltaEvaluator()
+	for {
+		line, error := reader.ReadString('\n')
 
-	for i := 0; i < 30; i++ {
-		_, error := io.ReadAtLeast(file, b, 2)
-		checkError(error)
-		smallestDelta = evaluator(stringsToInts(strings.Split(strings.Trim(string(b), " "), "   ")))
-		file.Seek(90-valueSet, 1)
-	}
-	fmt.Println(smallestDelta)
-}
-
-func deltaEvaluator() func(lowHi []int64) (smallestDelta int64) {
-	var smallestDelta int64
-	smallestDelta = 1000
-	return func(lowHi []int64) int64 {
-		low := lowHi[1]
-		hi := lowHi[0]
-		delta := hi - low
-		if delta < smallestDelta {
-			smallestDelta = delta
+		if error == nil {
+			line = strings.Replace(line, "*", " ", -1)
+			outputString = deltaFinder(strings.Fields(line))
+			continue
 		}
-		return smallestDelta
+
+		if error == io.EOF {
+			break
+		}
+
+		panic(error)
 	}
-}
-
-func stringsToInts(hiAndLow []string) (tempSet []int64) {
-	var err error
-	tempSet = make([]int64, 2)
-	tempSet[0], err = strconv.ParseInt(strings.Trim(hiAndLow[0], "*"), 10, 8)
-	checkError(err)
-	tempSet[1], err = strconv.ParseInt(strings.Trim(hiAndLow[1], " "), 10, 8)
-	checkError(err)
-	return
-}
-
-type highLow struct {
-	high, low int
+	fmt.Println(outputString)
 }
